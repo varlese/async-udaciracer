@@ -1,11 +1,26 @@
 // PROVIDED CODE BELOW (LINES 1 - 80) DO NOT REMOVE
 
 // The store will hold all information needed globally
-var store = {
-	track_id: undefined,
-	player_id: undefined,
-	race_id: undefined,
-}
+let {setState, getState} = ( () => {
+    let store = {
+		track_id: undefined,
+		player_id: undefined,
+		race_id: undefined,
+    }
+
+    const getState = () => {
+        return store
+    }
+
+    const setState = ( newState ) => {
+        store = {...store, ...newState}
+    }
+
+    return {
+        setState: setState,
+        getState: getState,
+    }
+} )()
 
 // We need our javascript to wait until the DOM is loaded
 document.addEventListener("DOMContentLoaded", function() {
@@ -32,18 +47,44 @@ async function onPageLoad() {
 	}
 }
 
+// Check if `child` is a descendant of `parent` to accept entire element as target
+// @link https://htmldom.dev/check-if-an-element-is-a-descendant-of-another/
+const getParent = function (parent, child) {
+    let node = child.parentNode;
+    while (node) {
+        if (node.matches(parent)) {
+            return node;
+        }
+        // Traverse up to the parent
+        node = node.parentNode;
+
+		if(typeof node.matches === `function`){
+			return null;
+		}
+    }
+
+    // Go up until the root but couldn't find the `parent`
+    return null;
+};
+
 function setupClickHandlers() {
 	document.addEventListener('click', function(event) {
 		const { target } = event
 
+		let parent;
+
 		// Race track form field
 		if (target.matches('.card.track')) {
 			handleSelectTrack(target)
+		} else if(parent = getParent(`.card.track`, target)) {
+			handleSelectTrack(parent)
 		}
 
 		// Podracer form field
 		if (target.matches('.card.podracer')) {
 			handleSelectPodRacer(target)
+		} else if(parent = getParent(`.card.podracer`, target)) {
+			handleSelectPodRacer(parent)
 		}
 
 		// Submit create race form
@@ -79,9 +120,9 @@ async function handleCreateRace() {
 	renderAt('#race', renderRaceStartView())
 
 	// TODO - Get player_id and track_id from the store
-	// const player_id = await store.player_id
+	const player_id = await store.player_id
 
-	// const track_id = await store.track_id
+	const track_id = await store.track_id
 
 	// const race = TODO - invoke the API call to create the race, then save the result
 	// fetch('api/races/${id}/start')
@@ -153,11 +194,18 @@ function handleSelectPodRacer(target) {
 	// add class selected to current target
 	target.classList.add('selected')
 
-	// TODO - save the selected racer to the store
+	// save the selected racer to the store
+	const player_id = target.id;
+
+	setState({player_id});
 }
 
 function handleSelectTrack(target) {
 	console.log("selected a track", target.id)
+
+	// const trackContainer;
+
+	console.log(target);
 
 	// remove class selected from all track options
 	const selected = document.querySelector('#tracks .selected')
@@ -168,8 +216,10 @@ function handleSelectTrack(target) {
 	// add class selected to current target
 	target.classList.add('selected')
 
-	// TODO - save the selected track id to the store
+	// save the selected track id to the store
+	const track_id = target.id;
 
+	setState({track_id})
 }
 
 function handleAccelerate() {
