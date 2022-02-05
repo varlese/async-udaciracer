@@ -21,7 +21,7 @@ body {
 }
 
 header {
-  background-image: url('https://via.placeholder.com/1150');
+  background-image: url(../images/tardis-racer.webp);
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -67,10 +67,10 @@ p {
 .button {
   width: 250px;
   padding: 20px 10px;
-  background-color: green;
+  background-color: #003B6F;
   cursor: pointer;
   border-radius: 4px;
-  border-color: 1px solid green;
+  border-color: 1px solid #003B6F;
   color: white;
   font-size: 20px;
   text-transform: uppercase;
