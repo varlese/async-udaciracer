@@ -6,6 +6,8 @@ let {setState, getState} = ( () => {
 		track_id: undefined,
 		player_id: undefined,
 		race_id: undefined,
+		tracks: [],
+		racers: [],
     }
 
     const getState = () => {
@@ -32,12 +34,14 @@ async function onPageLoad() {
 	try {
 		getTracks()
 			.then(tracks => {
+				setState({tracks})
 				const html = renderTrackCards(tracks)
 				renderAt('#tracks', html)
 			})
 
 		getRacers()
 			.then((racers) => {
+				setState({racers})
 				const html = renderRacerCars(racers)
 				renderAt('#racers', html)
 			})
@@ -116,66 +120,78 @@ async function delay(ms) {
 // Start here until line 91
 // This async function controls the flow of the race, add the logic and error handling
 async function handleCreateRace() {
+	// Get player_id and track_id from the store
+	const { player_id, track_id, racers, tracks } = getState();
+
+	const selectedTrack = tracks.filter(track => track.id == track_id)[0]
+
 	// render starting UI
-	renderAt('#race', renderRaceStartView())
+	renderAt('#race', renderRaceStartView(selectedTrack))
 
-	// TODO - Get player_id and track_id from the store
-	const player_id = await store.player_id
+	// invoke the API call to create the race, then save the result
+	const newRace = createRace(player_id, track_id)
+		// update the store with the race id
+		.then((race) => {
+			setState({race_id: race.ID})
+		})
 
-	const track_id = await store.track_id
+		// For the API to work properly, the race id should be race id - 1
 
-	// const race = TODO - invoke the API call to create the race, then save the result
-	// fetch('api/races/${id}/start')
-	// .then( data -> store race ID??)
+		// The race has been created, now start the countdown
+		// call the async function runCountdown
+		.then (() => {
+			runCountdown()
+			// call the async function startRace
+			.then((race_id) => startRace(race_id - 1))
 
-	// TODO - up{date the store with the race id
-	// updateStore({race_id: race_id}) //create an update store function or something else?
-
-	// For the API to work properly, the race id should be race id - 1
-
-	// The race has been created, now start the countdown
-	// TODO - call the async function runCountdown
-
-	// TODO - call the async function startRace
-
-	// TODO - call the async function runRace
+			// call the async function runRace
+			.then(runRace)
+		})
 }
 
 function runRace(raceID) {
 	return new Promise(resolve => {
-	// TODO - use Javascript's built in setInterval method to get race info every 500ms
+		// use Javascript's built in setInterval method to get race info every 500ms
+		const intervalID = setInterval(() => {
+			const {race_id} = getState();
 
-	/*
-		TODO - if the race info status property is "in-progress", update the leaderboard by calling:
-
-		renderAt('#leaderBoard', raceProgress(res.positions))
-	*/
-
-	/*
-		TODO - if the race info status property is "finished", run the following:
-
-		clearInterval(raceInterval) // to stop the interval from repeating
-		renderAt('#race', resultsView(res.positions)) // to render the results view
-		reslove(res) // resolve the promise
-	*/
+			const race = getRace(race_id - 1)
+				.then((race) => {
+					console.log(race)
+					if(race.status != `in-progress`){
+						// if the countdown is done, clear the interval, resolve the promise, and return
+						clearInterval(intervalID);
+						renderAt('#race', resultsView(race.positions)) // to render the results view
+						resolve(race);
+					} else {
+						renderAt('#leaderBoard', raceProgress(race.positions))
+					}
+				})
+		}, 500)
 	})
-	// remember to add error handling for the Promise
+	// TODO - remember to add error handling for the Promise
 }
 
 async function runCountdown() {
+	const {race_id} = getState();
+
 	try {
 		// wait for the DOM to load
 		await delay(1000)
 		let timer = 3
 
 		return new Promise(resolve => {
-			// TODO - use Javascript's built in setInterval method to count down once per second
+			// use Javascript's built in setInterval method to count down once per second
+			const intervalID = setInterval(() => {
+				// run this DOM manipulation to decrement the countdown for the user
+				document.getElementById('big-numbers').innerHTML = --timer
 
-			// run this DOM manipulation to decrement the countdown for the user
-			document.getElementById('big-numbers').innerHTML = --timer
-
-			// TODO - if the countdown is done, clear the interval, resolve the promise, and return
-
+			// if the countdown is done, clear the interval, resolve the promise, and return
+				if(timer === 0){
+					clearInterval(intervalID);
+					resolve(race_id);
+				}
+			}, 1000)
 		})
 	} catch(error) {
 		console.log(error);
@@ -203,10 +219,6 @@ function handleSelectPodRacer(target) {
 function handleSelectTrack(target) {
 	console.log("selected a track", target.id)
 
-	// const trackContainer;
-
-	console.log(target);
-
 	// remove class selected from all track options
 	const selected = document.querySelector('#tracks .selected')
 	if(selected) {
@@ -224,7 +236,10 @@ function handleSelectTrack(target) {
 
 function handleAccelerate() {
 	console.log("accelerate button clicked")
-	// TODO - Invoke the API call to accelerate
+
+	const {race_id} = getState();
+
+	accelerate(race_id - 1)
 }
 
 // HTML VIEWS ------------------------------------------------
@@ -320,14 +335,18 @@ function resultsView(positions) {
 			<h1>Race Results</h1>
 		</header>
 		<main>
+			<section>
 			${raceProgress(positions)}
-			<a href="/race">Start a new race</a>
+			<a href="/race" class="button">Start a new race</a>
+			</section>
 		</main>
 	`
 }
 
 function raceProgress(positions) {
-	let userPlayer = positions.find(e => e.id === store.player_id)
+	const {player_id } = getState();
+
+	let userPlayer = positions.find(e => e.id == player_id)
 	userPlayer.driver_name += " (you)"
 
 	positions = positions.sort((a, b) => (a.segment > b.segment) ? -1 : 1)
@@ -345,9 +364,9 @@ function raceProgress(positions) {
 
 	return `
 		<main>
-			<h3>Leaderboard</h3>
+			<h2>Leaderboard</h2>
 			<section id="leaderBoard">
-				${results}
+				${results.join('')}
 			</section>
 		</main>
 	`
@@ -397,7 +416,12 @@ const makeRequest = async (url, method, data) => {
 	}
 
 	return await fetch(url, requestOptions)
-		.then(res => res.json());
+		.then((res) => {
+			if(res.headers.get(`Content-Length`) == 0){
+				return null;
+			}
+			return res.json()
+		})
 };
 
 const getTracks = async () => {
