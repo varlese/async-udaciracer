@@ -1,7 +1,7 @@
 // PROVIDED CODE BELOW (LINES 1 - 80) DO NOT REMOVE
 
 // The store will hold all information needed globally
-let { setState, getState } = ( () => {
+const { setState, getState } = ( () => {
     let store = {
 		track_id: undefined,
 		player_id: undefined,
@@ -364,7 +364,7 @@ function resultsView( positions ) {
 function raceProgress( positions ) {
 	const { player_id } = getState()
 
-	let userPlayer = positions.find( e => e.id == player_id )
+	const userPlayer = positions.find( e => e.id == player_id )
 	userPlayer.driver_name += ' (you)'
 
 	positions = positions.sort( ( a, b ) => ( a.segment > b.segment ) ? -1 : 1 )
@@ -454,6 +454,10 @@ const makeRequest = async ( url, method, data ) => {
 				return null
 			}
 			return res.json()
+		} )
+		.catch( ( error ) => {
+			console.log( 'There was a problem making this request.' )
+			console.log( error )
 		} )
 }
 
